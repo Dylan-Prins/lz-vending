@@ -1,0 +1,13 @@
+{
+    "costCenter": "123456",
+    "subscriptionAliasEnabled": false,
+    "subscriptionId": "1e95b10c-266b-4d4f-9be2-856a3bb1462e",
+    "subscriptionOwner": "Pietje",
+    "virtualNetworkName": "vnet-01",
+    "tags": {
+        "owner": "Pietje",
+        "environment": "Production",
+        "costCenter": "123456"
+    }
+
+}
