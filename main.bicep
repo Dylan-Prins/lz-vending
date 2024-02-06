@@ -7,46 +7,42 @@ param subscriptionManagementGroupId string
 param subscriptionTags object = {}
 param roleAssignments array = []
 
+var subnetId = '/subscriptions/1e95b10c-266b-4d4f-9be2-856a3bb1462e/resourceGroups/dylan-rg/providers/Microsoft.Network/virtualNetworks/salzvending-vnet/subnets/deploymentScripts'
+var subscriptionId = '1e95b10c-266b-4d4f-9be2-856a3bb1462e'
+var storageAccountId = '/subscriptions/1e95b10c-266b-4d4f-9be2-856a3bb1462e/resourceGroups/dylan-rg/providers/Microsoft.Storage/storageAccounts/stsihdt252lp6um'
+var resourceGroupName = 'dylan-rg'
+
 type roleAssignment = {
   principalId: string
   roleDefinitionId: string
   scope: string
 }[]
 
-module uai 'br/public:identity/user-assigned-identity:1.0.2' = {
-  scope: resourceGroup('', '')
+resource uai 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
+  scope: resourceGroup(subscriptionId, resourceGroupName)
   name: 'subscriptionFinder'
-  params: {
-    location: 'west-europe'
-  }
-}
-
-@description('Reader Role assignment for subscription finder')
-resource roleassignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: 'roleassignment'
-  properties: {
-    principalId: uai.outputs.principalId
-    roleDefinitionId: tenantResourceId('Microsoft.Authorization/roleDefinitions', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')
-    principalType: 'ServicePrincipal'
-  }
 }
 
 module script 'br/public:avm/res/resources/deployment-script:0.1.1' = {
-  scope: resourceGroup('', '')
+  scope: resourceGroup(subscriptionId, resourceGroupName)
   name: 'script'
   params: {
     kind: 'AzurePowerShell'
     name: 'script'
     scriptContent: loadTextContent('./scripts/Get-SubscriptionId.ps1')
     enableTelemetry: false
-    azPowerShellVersion: '11.2.0'
+    arguments: '-SubscriptionName ${subscriptionAliasName}'
+    azPowerShellVersion: '11.0'
+    retentionInterval: 'P1D'
     location: 'westeurope'
+    runOnce: true
+    storageAccountResourceId: storageAccountId
     subnetResourceIds:[
-      '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet/subnets/subnet'
+      subnetId
     ]
     managedIdentities: {
       userAssignedResourcesIds: [
-        uai.outputs.id
+        uai.id
       ]
     }
   }
@@ -71,3 +67,6 @@ module vending 'br/public:lz/sub-vending:1.5.1' = {
     virtualNetworkEnabled: false
   }
 }
+
+output subscriptionId string = vending.outputs.subscriptionId
+output subscriptionResourceId string = vending.outputs.subscriptionResourceId

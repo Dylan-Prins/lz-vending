@@ -1,9 +1,9 @@
 using '../main.bicep'
 
-param subscriptionAliasName = ''
-param subscriptionBillingScope = ''
-param subscriptionDisplayName = ''
-param subscriptionManagementGroupId = ''
+param subscriptionAliasName = 'Customer-Sub'
+param subscriptionBillingScope = '1'
+param subscriptionDisplayName = 'Customer-Sub'
+param subscriptionManagementGroupId = 'SOC3'
 param subscriptionTags = {}
 param roleAssignments = []
 
