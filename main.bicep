@@ -7,6 +7,9 @@ param subscriptionManagementGroupId string
 param subscriptionTags object = {}
 param roleAssignments array = []
 
+param userAssignedIdentityName string = 'lz-vending-uai'
+param deploymentScriptName string = 'lz-vending-deploymentScript'
+
 var subnetId = '/subscriptions/1e95b10c-266b-4d4f-9be2-856a3bb1462e/resourceGroups/dylan-rg/providers/Microsoft.Network/virtualNetworks/salzvending-vnet/subnets/deploymentScripts'
 var subscriptionId = '1e95b10c-266b-4d4f-9be2-856a3bb1462e'
 var storageAccountId = '/subscriptions/1e95b10c-266b-4d4f-9be2-856a3bb1462e/resourceGroups/dylan-rg/providers/Microsoft.Storage/storageAccounts/stsihdt252lp6um'
@@ -20,15 +23,15 @@ type roleAssignment = {
 
 resource uai 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
   scope: resourceGroup(subscriptionId, resourceGroupName)
-  name: 'subscriptionFinder'
+  name: userAssignedIdentityName
 }
 
-module script 'br/public:avm/res/resources/deployment-script:0.1.1' = {
+module deploymentScript 'br/public:avm/res/resources/deployment-script:0.1.1' = {
   scope: resourceGroup(subscriptionId, resourceGroupName)
-  name: 'script'
+  name: 'lz-vending-deploymentScript'
   params: {
     kind: 'AzurePowerShell'
-    name: 'script'
+    name: deploymentScriptName
     scriptContent: loadTextContent('./scripts/Get-SubscriptionId.ps1')
     enableTelemetry: false
     arguments: '-SubscriptionName ${subscriptionAliasName}'
@@ -49,17 +52,17 @@ module script 'br/public:avm/res/resources/deployment-script:0.1.1' = {
 }
 
 module vending 'br/public:lz/sub-vending:1.5.1' = {
-  name: 'vending'
+  name: 'lz-vending-${subscriptionAliasName}'
   params: {
     disableTelemetry: true
     resourceProviders: {}
     roleAssignmentEnabled: roleAssignments == [] ? false : true
     roleAssignments: roleAssignments
-    subscriptionAliasEnabled: script.outputs.outputs.subscriptionId == '' ? true : false
-    existingSubscriptionId: script.outputs.outputs.subscriptionId == '' ? '' : script.outputs.outputs.subscriptionId
-    subscriptionAliasName: script.outputs.outputs.subscriptionId == '' ? subscriptionAliasName : ''
-    subscriptionBillingScope: script.outputs.outputs.subscriptionId == '' ? subscriptionBillingScope : ''
-    subscriptionDisplayName: script.outputs.outputs.subscriptionId == '' ? subscriptionDisplayName : ''
+    subscriptionAliasEnabled: deploymentScript.outputs.outputs.subscriptionId == '' ? true : false
+    existingSubscriptionId: deploymentScript.outputs.outputs.subscriptionId == '' ? '' : deploymentScript.outputs.outputs.subscriptionId
+    subscriptionAliasName: deploymentScript.outputs.outputs.subscriptionId == '' ? subscriptionAliasName : ''
+    subscriptionBillingScope: deploymentScript.outputs.outputs.subscriptionId == '' ? subscriptionBillingScope : ''
+    subscriptionDisplayName: deploymentScript.outputs.outputs.subscriptionId == '' ? subscriptionDisplayName : ''
     subscriptionManagementGroupAssociationEnabled: true
     subscriptionManagementGroupId: subscriptionManagementGroupId
     subscriptionTags: subscriptionTags

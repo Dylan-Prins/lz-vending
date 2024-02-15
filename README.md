@@ -3,5 +3,3 @@
 needed:
 
 - privatednszone provider
-
-Tests:

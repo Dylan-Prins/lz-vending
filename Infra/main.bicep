@@ -1,16 +1,18 @@
 targetScope = 'managementGroup'
 
-param storageAccountName string = 'salzvending01'
-param virtualNetworkName string = 'salzvending-vnet'
+param storageAccountName string = 'lzvendingsa'
+param virtualNetworkName string = 'lz-vending-vnet'
 param location string = 'westeurope'
 param resourceGroupName string = 'dylan-rg'
+
+param userAssignedIdentityName string = 'lz-vending-uai'
 
 var subscriptionId = '1e95b10c-266b-4d4f-9be2-856a3bb1462e'
 var addressPrefix = '192.168.1.0/24'
 
 module vnet 'br/public:avm/res/network/virtual-network:0.1.1' = {
   scope: resourceGroup(subscriptionId,resourceGroupName)
-  name: virtualNetworkName
+  name: 'lz-vending-infra-vnet'
   params: {
     addressPrefixes: [addressPrefix]
     name: virtualNetworkName
@@ -38,9 +40,9 @@ module vnet 'br/public:avm/res/network/virtual-network:0.1.1' = {
 
 module uai 'br/public:identity/user-assigned-identity:1.0.2' = {
   scope: resourceGroup(subscriptionId, resourceGroupName)
-  name: 'subscriptionFinder'
+  name: 'lz-vending-infra-uai'
   params: {
-    name: 'subscriptionFinder'
+    name: userAssignedIdentityName
     location: 'westeurope'
   }
 }
@@ -57,7 +59,7 @@ resource roleassignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 
 module privateDnsZone 'br/public:network/private-dns-zone:1.0.1' = {
   scope: resourceGroup(subscriptionId, resourceGroupName)
-  name: 'privateDnsZone'
+  name: 'lz-vending-infra-dns'
   params: {
     name: 'privatelink.file.${environment().suffixes.storage}'
     location: 'global'
@@ -66,11 +68,12 @@ module privateDnsZone 'br/public:network/private-dns-zone:1.0.1' = {
 
 module sa 'br/public:storage/storage-account:3.0.1' = {
   scope: resourceGroup(subscriptionId, resourceGroupName)
-  name: storageAccountName
+  name: 'lz-vending-infra-sa'
   params: {
     location: location
     kind: 'StorageV2'
     sku: 'Standard_LRS'
+    name: storageAccountName
     storageRoleAssignments: [
       {
         principalId: uai.outputs.principalId
