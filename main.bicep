@@ -8,12 +8,12 @@ param subscriptionTags object = {}
 param roleAssignments array = []
 
 param userAssignedIdentityName string = 'lz-vending-uai'
-param deploymentScriptName string = 'lz-vending-deploymentScript'
+param deploymentScriptName string = 'lz-deploymentScript'
 
-var subnetId = '/subscriptions/1e95b10c-266b-4d4f-9be2-856a3bb1462e/resourceGroups/dylan-rg/providers/Microsoft.Network/virtualNetworks/salzvending-vnet/subnets/deploymentScripts'
+var subnetId = '/subscriptions/1e95b10c-266b-4d4f-9be2-856a3bb1462e/resourceGroups/rg-deployment-scripts/providers/Microsoft.Network/virtualNetworks/lz-vending-vnet/subnets/deploymentScripts'
 var subscriptionId = '1e95b10c-266b-4d4f-9be2-856a3bb1462e'
-var storageAccountId = '/subscriptions/1e95b10c-266b-4d4f-9be2-856a3bb1462e/resourceGroups/dylan-rg/providers/Microsoft.Storage/storageAccounts/stsihdt252lp6um'
-var resourceGroupName = 'dylan-rg'
+var storageAccountId = '/subscriptions/1e95b10c-266b-4d4f-9be2-856a3bb1462e/resourceGroups/rg-deployment-scripts/providers/Microsoft.Storage/storageAccounts/lzvendingsa'
+var resourceGroupName = 'rg-deployment-scripts'
 
 type roleAssignment = {
   principalId: string
@@ -34,7 +34,7 @@ module deploymentScript 'br/public:avm/res/resources/deployment-script:0.1.1' = 
     name: deploymentScriptName
     scriptContent: loadTextContent('./scripts/Get-SubscriptionId.ps1')
     enableTelemetry: false
-    arguments: '-SubscriptionName ${subscriptionAliasName}'
+    arguments: '-SubscriptionName "${subscriptionDisplayName}"'
     azPowerShellVersion: '11.0'
     retentionInterval: 'P1D'
     location: 'westeurope'
@@ -52,7 +52,7 @@ module deploymentScript 'br/public:avm/res/resources/deployment-script:0.1.1' = 
 }
 
 module vending 'br/public:lz/sub-vending:1.5.1' = {
-  name: 'lz-vending-${subscriptionAliasName}'
+  name: 'lz-vending-${subscriptionDisplayName}'
   params: {
     disableTelemetry: true
     resourceProviders: {}

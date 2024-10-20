@@ -3,15 +3,25 @@ targetScope = 'managementGroup'
 param storageAccountName string = 'lzvendingsa'
 param virtualNetworkName string = 'lz-vending-vnet'
 param location string = 'westeurope'
-param resourceGroupName string = 'dylan-rg'
+param resourceGroupName string = 'rg-deployment-scripts'
 
 param userAssignedIdentityName string = 'lz-vending-uai'
 
 var subscriptionId = '1e95b10c-266b-4d4f-9be2-856a3bb1462e'
 var addressPrefix = '192.168.1.0/24'
 
+module rg 'br/public:avm/res/resources/resource-group:0.4.0' = {
+  scope: subscription(subscriptionId)
+  name: 'lz-vending-infra-rg'
+  params: {
+    enableTelemetry: false
+    name: resourceGroupName
+  }
+}
+
 module vnet 'br/public:avm/res/network/virtual-network:0.1.1' = {
-  scope: resourceGroup(subscriptionId,resourceGroupName)
+  scope: resourceGroup(subscriptionId, resourceGroupName)
+  dependsOn: [rg]
   name: 'lz-vending-infra-vnet'
   params: {
     addressPrefixes: [addressPrefix]
@@ -38,10 +48,12 @@ module vnet 'br/public:avm/res/network/virtual-network:0.1.1' = {
   }
 }
 
-module uai 'br/public:identity/user-assigned-identity:1.0.2' = {
+module uai 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.0' = {
   scope: resourceGroup(subscriptionId, resourceGroupName)
+  dependsOn: [rg]
   name: 'lz-vending-infra-uai'
   params: {
+    enableTelemetry: false
     name: userAssignedIdentityName
     location: 'westeurope'
   }
@@ -52,45 +64,59 @@ resource roleassignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(subscriptionId, resourceGroupName, 'Reader')
   properties: {
     principalId: uai.outputs.principalId
-    roleDefinitionId: tenantResourceId('Microsoft.Authorization/roleDefinitions', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')
+    roleDefinitionId: tenantResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      'acdd72a7-3385-48ef-bd42-f606fba81ae7'
+    )
     principalType: 'ServicePrincipal'
   }
 }
 
-module privateDnsZone 'br/public:network/private-dns-zone:1.0.1' = {
+module privateDnsZone 'br/public:avm/res/network/private-dns-zone:0.6.0' = {
+  dependsOn: [rg]
   scope: resourceGroup(subscriptionId, resourceGroupName)
   name: 'lz-vending-infra-dns'
   params: {
+    enableTelemetry: false
     name: 'privatelink.file.${environment().suffixes.storage}'
     location: 'global'
+    virtualNetworkLinks: [
+      {
+        virtualNetworkResourceId: vnet.outputs.resourceId
+
+      }
+    ]
   }
 }
 
-module sa 'br/public:storage/storage-account:3.0.1' = {
+module sa 'br/public:avm/res/storage/storage-account:0.9.1' = {
+  dependsOn: [rg]
   scope: resourceGroup(subscriptionId, resourceGroupName)
   name: 'lz-vending-infra-sa'
   params: {
+    enableTelemetry: false
     location: location
     kind: 'StorageV2'
-    sku: 'Standard_LRS'
+    skuName: 'Standard_LRS'
     name: storageAccountName
-    storageRoleAssignments: [
+    publicNetworkAccess: 'Disabled'
+    roleAssignments: [
       {
         principalId: uai.outputs.principalId
-        roleDefinitionIdOrName: '/providers/Microsoft.Authorization/roleDefinitions/69566ab7-960f-475b-8e7c-b3118f30c6bd'
+        roleDefinitionIdOrName: '69566ab7-960f-475b-8e7c-b3118f30c6bd'
         principalType: 'ServicePrincipal'
       }
     ]
     privateEndpoints: [
       {
-        name: 'privateEndpoint'
-        groupId: 'file'
-        subnetId: vnet.outputs.subnetResourceIds[0]
-        privateDnsZoneId: privateDnsZone.outputs.id
+        service: 'file'
+        subnetResourceId: vnet.outputs.subnetResourceIds[0]
+        privateDnsZoneResourceIds: [privateDnsZone.outputs.resourceId]
+        enableTelemetry: false
       }
     ]
   }
 }
 
 output subnetId string = vnet.outputs.subnetResourceIds[1]
-output storageAccountId string = sa.outputs.id
+output storageAccountId string = sa.outputs.resourceId
